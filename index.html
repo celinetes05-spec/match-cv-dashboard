@@ -13,7 +13,7 @@
     .header { margin-bottom: 2rem; }
     .header h1 { font-size: 28px; font-weight: 600; margin-bottom: 0.5rem; }
     .header p { font-size: 14px; color: var(--color-text-secondary); }
-    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 2rem; }
     .metric-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; }
     .metric-label { font-size: 12px; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px; }
     .metric-value { font-size: 28px; font-weight: 600; }
@@ -21,10 +21,16 @@
     .chart-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem; }
     .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 1rem; }
     .chart-wrapper { position: relative; width: 100%; height: 280px; }
+    .full-width-chart { margin-bottom: 2rem; }
+    .golden-signals { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+    .golden-signal-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem; }
+    .golden-signal-title { font-size: 13px; font-weight: 600; margin-bottom: 1rem; color: #534AB7; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th { background: #f5f5f5; padding: 10px; text-align: left; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
     td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
-    @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } }
+    tr:hover { background: #f9fafb; }
+    .loading { text-align: center; padding: 2rem; color: var(--color-text-secondary); }
+    @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } .golden-signals { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -33,59 +39,178 @@
       <h1>Match-CV LLM Telemetry Dashboard</h1>
       <p id="status">Chargement des données...</p>
     </div>
+
     <div class="metrics-grid">
       <div class="metric-card">
         <div class="metric-label">Total Cost</div>
-        <div class="metric-value">$<span id="total-cost">0.01</span></div>
+        <div class="metric-value">$<span id="total-cost">0.00</span></div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Total Tokens</div>
-        <div class="metric-value"><span id="total-tokens">4430</span></div>
+        <div class="metric-value"><span id="total-tokens">0</span></div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Total Calls</div>
-        <div class="metric-value"><span id="total-calls">10</span></div>
+        <div class="metric-value"><span id="total-calls">0</span></div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Avg Latency</div>
-        <div class="metric-value"><span id="avg-latency">1217</span> ms</div>
+        <div class="metric-value"><span id="avg-latency">0</span> ms</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Success Rate</div>
+        <div class="metric-value"><span id="success-rate">0</span>%</div>
       </div>
     </div>
+
     <div class="charts-row">
       <div class="chart-card">
-        <div class="chart-title">Cost by Agent</div>
+        <div class="chart-title">💰 Cost by Agent</div>
         <div class="chart-wrapper"><canvas id="costByAgentChart"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Cost by Model</div>
+        <div class="chart-title">🤖 Cost by Model</div>
         <div class="chart-wrapper"><canvas id="costByModelChart"></canvas></div>
       </div>
     </div>
-    <div class="chart-card" style="margin-bottom: 2rem;">
-      <div class="chart-title">Cost Timeline</div>
+
+    <div class="chart-card full-width-chart">
+      <div class="chart-title">📊 Cost Timeline (24h)</div>
       <div style="position: relative; width: 100%; height: 320px;"><canvas id="costTimelineChart"></canvas></div>
     </div>
-    <div class="chart-card">
-      <div class="chart-title">Detailed Logs</div>
+
+    <div class="golden-signals">
+      <div class="golden-signal-card">
+        <div class="golden-signal-title">⏱️ Golden Signal #1: LATENCY</div>
+        <table id="latency-table">
+          <thead><tr><th>Agent</th><th>Model</th><th>Avg (ms)</th><th>P95 (ms)</th></tr></thead>
+          <tbody id="latency-tbody"><tr><td colspan="4" class="loading">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="golden-signal-card">
+        <div class="golden-signal-title">📈 Golden Signal #2: TRAFFIC</div>
+        <table id="traffic-table">
+          <thead><tr><th>Agent</th><th>Model</th><th>Calls</th><th>Tokens</th></tr></thead>
+          <tbody id="traffic-tbody"><tr><td colspan="4" class="loading">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="golden-signal-card">
+        <div class="golden-signal-title">❌ Golden Signal #3: ERRORS</div>
+        <table id="errors-table">
+          <thead><tr><th>Agent</th><th>Status</th><th>Count</th><th>Rate %</th></tr></thead>
+          <tbody id="errors-tbody"><tr><td colspan="4" class="loading">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="golden-signal-card">
+        <div class="golden-signal-title">🔄 Golden Signal #4: SATURATION</div>
+        <table id="saturation-table">
+          <thead><tr><th>Agent</th><th>Queue</th><th>Retries</th><th>Rate %</th></tr></thead>
+          <tbody id="saturation-tbody"><tr><td colspan="4" class="loading">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-top: 2rem;">
+      <div class="chart-title">📋 Detailed Logs (Last 50)</div>
       <table>
-        <thead><tr><th>Agent</th><th>Model</th><th>Tokens</th><th>Latency</th><th>Cost</th></tr></thead>
-        <tbody id="logs-tbody">
-          <tr><td>document_analyzer</td><td>mixtral-8x7b</td><td>400</td><td>1200</td><td>$0.0008</td></tr>
-          <tr><td>cv_scorer</td><td>mixtral-8x7b</td><td>350</td><td>950</td><td>$0.0007</td></tr>
-          <tr><td>recruiter_agent</td><td>mixtral-8x7b</td><td>700</td><td>2100</td><td>$0.0014</td></tr>
-        </tbody>
+        <thead><tr><th>Agent</th><th>Model</th><th>Tokens</th><th>Latency</th><th>Cost</th><th>Status</th></tr></thead>
+        <tbody id="logs-tbody"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
+
   <script>
-    const data = {
-      agents: [{name: 'document_analyzer', cost: 0.00456}, {name: 'cv_scorer', cost: 0.00368}, {name: 'recruiter_agent', cost: 0.00462}],
-      models: [{name: 'mixtral-8x7b', cost: 0.00785}, {name: 'gpt-4o-mini', cost: 0.00501}],
-      timeline: [{hour: '14:00', cost: 0.00286}, {hour: '14:01', cost: 0.00187}, {hour: '14:02', cost: 0.00245}]
-    };
-    new Chart(document.getElementById('costByAgentChart'), {type: 'bar', data: {labels: data.agents.map(a => a.name), datasets: [{label: 'Cost', data: data.agents.map(a => a.cost), backgroundColor: '#3b82f6', borderRadius: 4}]}, options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
-    new Chart(document.getElementById('costByModelChart'), {type: 'doughnut', data: {labels: data.models.map(m => m.name), datasets: [{data: data.models.map(m => m.cost), backgroundColor: ['#8b5cf6', '#ec4899']}]}, options: {responsive: true, maintainAspectRatio: false}});
-    new Chart(document.getElementById('costTimelineChart'), {type: 'line', data: {labels: data.timeline.map(t => t.hour), datasets: [{label: 'Cost', data: data.timeline.map(t => t.cost), borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', borderWidth: 2, fill: true, tension: 0.4}]}, options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
+    async function loadDashboard() {
+      try {
+        const response = await fetch('/api/metrics');
+        if (!response.ok) throw new Error('API Error');
+        const data = await response.json();
+        
+        updateMetrics(data.metrics);
+        updateGoldenSignals(data.golden_signals);
+        updateCharts(data.cost_breakdown, data.timeline);
+        updateLogs(data.logs);
+        document.getElementById('status').textContent = `Mis à jour à ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('status').textContent = 'Erreur de chargement';
+      }
+    }
+
+    function updateMetrics(m) {
+      document.getElementById('total-cost').textContent = m.total_cost.toFixed(4);
+      document.getElementById('total-tokens').textContent = m.total_tokens;
+      document.getElementById('total-calls').textContent = m.total_calls;
+      document.getElementById('avg-latency').textContent = Math.round(m.avg_latency);
+      document.getElementById('success-rate').textContent = (100 - m.error_rate).toFixed(1);
+    }
+
+    function updateGoldenSignals(gs) {
+      ['latency', 'traffic', 'errors', 'saturation'].forEach(signal => {
+        const tbody = document.getElementById(`${signal}-tbody`);
+        tbody.innerHTML = gs[signal].slice(0, 5).map(row => {
+          const cells = signal === 'latency' 
+            ? [row.actor_name, row.model, row.avg_latency_ms, row.p95_latency_ms]
+            : signal === 'traffic'
+            ? [row.actor_name, row.model, row.total_calls, row.total_tokens]
+            : signal === 'errors'
+            ? [row.actor_name, row.status, row.error_count, row.error_rate_percent]
+            : [row.actor_name, row.avg_queue_depth, row.avg_retry_count, row.retry_rate_percent];
+          return `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+        }).join('');
+      });
+    }
+
+    function updateCharts(cb, timeline) {
+      const agents = cb.by_agent.map(a => a.actor_name);
+      const agentCosts = cb.by_agent.map(a => parseFloat(a.cost_usd));
+      
+      new Chart(document.getElementById('costByAgentChart'), {
+        type: 'bar',
+        data: {
+          labels: agents,
+          datasets: [{label: 'Cost (USD)', data: agentCosts, backgroundColor: '#3b82f6', borderRadius: 4}]
+        },
+        options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}
+      });
+
+      const models = cb.by_model.map(m => m.model);
+      const modelCosts = cb.by_model.map(m => parseFloat(m.cost_usd));
+      
+      new Chart(document.getElementById('costByModelChart'), {
+        type: 'doughnut',
+        data: {
+          labels: models,
+          datasets: [{data: modelCosts, backgroundColor: ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981']}]
+        },
+        options: {responsive: true, maintainAspectRatio: false}
+      });
+
+      new Chart(document.getElementById('costTimelineChart'), {
+        type: 'line',
+        data: {
+          labels: timeline.map(t => t.hour.split('T')[1].split(':').slice(0, 2).join(':')),
+          datasets: [{label: 'Cost (USD)', data: timeline.map(t => t.cost_usd), borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', borderWidth: 2, fill: true, tension: 0.4}]
+        },
+        options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}
+      });
+    }
+
+    function updateLogs(logs) {
+      document.getElementById('logs-tbody').innerHTML = logs.map(log => `
+        <tr>
+          <td>${log.actor_name}</td>
+          <td>${log.model}</td>
+          <td>${log.total_tokens}</td>
+          <td>${log.latency_ms}</td>
+          <td>$${log.cost_usd.toFixed(6)}</td>
+          <td>${log.status}</td>
+        </tr>
+      `).join('');
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 30000); // Rafraîchit toutes les 30 secondes
   </script>
 </body>
 </html>
